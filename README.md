@@ -28,5 +28,5 @@ This project automates the testing of coding workflows found in our documentatio
    ```
 
 ## Output:
-* Generated code files are saved in the temp_code folder.
-* An execution report is saved to report.txt.
+* Generated code files are saved in the `temp_code/` folder.
+* An execution report is saved to `report.txt`.
