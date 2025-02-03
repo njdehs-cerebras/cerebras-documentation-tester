@@ -12,7 +12,8 @@ This project automates the testing of coding workflows found in our documentatio
 
 ## Usage
 
-1. **Arrange Docs Folder**  
+1. **Arrange Docs Folder**
+
    Put `.mdx` files in the `docs` folder. You can also simply clone the entirety of `inference-docs` or `training-docs` in the `docs/` folder.
    
 2. **Run the Script**
