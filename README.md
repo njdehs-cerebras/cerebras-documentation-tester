@@ -16,6 +16,7 @@ This project automates the testing of coding workflows found in our documentatio
    Put `.mdx` files in the `docs` folder. You can also simply clone the entirety of `inference-docs` or `training-docs` in the `docs/` folder.
    
 2. **Run the Script**
+
    To generate and execute the workflow files, run:
    ```bash
    python docs_tester.py
