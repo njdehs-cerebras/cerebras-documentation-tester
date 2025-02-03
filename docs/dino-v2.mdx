@@ -1,0 +1,183 @@
+---
+title: DINOv2
+description: Self-supervised vision model that learns general-purpose visual features without labeled data, excelling in diverse image and pixel-level tasks
+---
+
+## Model Description
+
+DINOv2 is a self-supervised vision transformer model by Meta that learns high-quality image representations without needing labeled data. It builds on the success of DINO by introducing architectural and training enhancements that deliver state-of-the-art performance across various computer vision tasks, including classification.
+
+<Frame caption="DINOv2 data processing pipeline, from [Oquab et al 2023](https://arxiv.org/pdf/2304.07193).">
+  <img src="/images/model-zoo/dinov2-data-pipeline.png" />
+</Frame>
+
+## Code Structure
+
+The code for this model is located in the [`dino`](https://github.com/Cerebras/monolith/tree/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino) directory within ModelZoo. Here’s how it's organized:
+
+* [`configs/`](https://github.com/Cerebras/monolith/tree/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino/configs): Contains YAML configuration files.
+
+* [`run.py`](https://github.com/Cerebras/monolith/blob/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino/run.py): The training script, responsible for training and validation.
+
+* [`model.py`](https://github.com/Cerebras/monolith/blob/rel-2.4.2/src/models/src/cerebras/modelzoo/models/vision/dino/model.py): The implementation of the DINOv2 model.
+
+* [`DinoImageDataProcessor.py`](https://github.com/Cerebras/monolith/blob/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino/DinoImageDataProcessor.py): Data processor for DINOv2.&#x20;
+
+## Available Configurations
+
+| Configuration                                                                                                                                                                                    | Size | Description                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | :-------------------------------------- |
+| [params\_dinov2\_large\_patch14.yaml](https://github.com/Cerebras/monolith/blob/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino/configs/params_dinov2_large_patch14.yaml) | 224  | Config for DINOv2 large, image size 224 |
+
+## About this Implementation
+
+This implementation of DINOv2 uses the `generic_image_encoders` architecture as its backbone, and you can find the model architecture details in its [directory](https://github.com/Cerebras/monolith/tree/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/generic_image_encoders).
+
+### Differences Between Our Implementation and Meta's
+
+Unlike Meta’s version, which includes KoLeo loss, this implementation only includes DinoDistillationLoss and iBOTPatchLoss, which was introduced in DINOv2.
+
+Pretrained models from Meta and Hugging Face only include the backbone, meaning they cannot be used for continuous pretraining and are limited to downstream tasks. In contrast, our implementation provides everything needed for continuous pretraining.
+
+## Model Input Tensor Specifications
+
+The following table describes the expected input tensor formats for the [params\_dinov2\_large\_patch14.yaml](https://github.com/Cerebras/monolith/blob/njdehs/dino-readme/src/models/src/cerebras/modelzoo/models/vision/dino/configs/params_dinov2_large_patch14.yaml) config, including their dimensions, data types, and purposes.
+
+| **Input Name**   | **Shape**              | **Data Type**   | **Description**                                                             |
+| ---------------- | ---------------------- | --------------- | --------------------------------------------------------------------------- |
+| `collated_masks` | (1024, 2, 256)         | `torch.bool`    | Boolean mask indicating which patches are masked during training.           |
+| `global_view`    | (1024, 2, 3, 224, 224) | `torch.float32` | Global image views (2 samples per batch, 3-channel images of size 224x224). |
+| `labels`         | (1024,)                | `torch.int64`   | Ground truth labels for the inputs.                                         |
+| `local_view`     | (1024, 8, 3, 98, 98)   | `torch.float32` | Local image views (8 samples per batch, 3-channel images of size 98x98).    |
+
+## Workflow
+
+In this workflow we'll demonstrate how to get started using DINOv2, inlcuding for pretraining, continuous pretraining, and finetuning tasks.
+
+<Steps>
+  <Step title="Prerequisites and Setup">
+    Before getting started, ensure that you've gone through our [setup and installation guide](https://training-docs.cerebras.ai/getting-started/setup-and-installation).
+
+    Next, create a dedicated folder for assets (configs, data) and generated files (processed data files, checkpoints, logs, etc.):
+
+    ```bash
+    mkdir dinov2
+    ```
+
+    Copy the sample model config into your folder. You will use this to control ModelZoo scripts training of DINOv2.
+
+    ```bash
+    cp modelzoo/src/cerebras/modelzoo/models/vision/dino/configs/params_dinov2_large_patch14.yaml dinov2
+    ```
+  </Step>
+
+  <Step title="Data Preparation">
+    Our implementation of DINOv2 supports all torchvision datasets. In our internal testing, we used ImageNet1K. To get started, set the dataset path to where your torchvision dataset is stored, ensuring it conforms to the torchvision standard. For more information on how to prepare datasets using `torchvision`, please visit our guide [here](https://github.com/Cerebras/monolith/tree/feacbef3c42fc6095c574deac7ed70d6c72e8ad2/src/models/src/cerebras/modelzoo/data/vision/classification/data).
+
+Once completed, your dataset directory should look as follows:
+
+   ```
+    root_directory
+    │-- meta.bin
+    │-- train/
+    │   │-- n01440764
+    │   │   │-- n01440764_10026.JPEG
+    │   │   │-- ...
+    │   │-- n01443537
+    │   │   │-- ...
+    │   │-- ...
+    │   val/
+    │   │-- n01440764
+    │   │   │-- ILSVRC2012_val_00000946.JPEG
+    │   │   │-- ...
+    │   │-- n01443537
+    │   │   │-- ...
+    │   │-- ...
+    ```
+
+    <Warning>
+      This implementation does not support on-demand downloading, so make sure to download the dataset beforehand.
+    </Warning>
+
+Once your data directory is ready, modify the `root` parameter under `dataset` in the model config to point to the desired dataset location.
+ 
+  </Step>
+
+  <Step title="Running the Model">
+    <Tabs>
+      <Tab title="Pretraining">
+        Run the pretraining process using the provided configuration.
+
+        ```bash
+        cszoo fit <config>
+        ```
+      </Tab>
+
+      <Tab title="Continuous Pretraining">
+        You can continue training from an existing DINOv2 checkpoint while adjusting parameters such as image size.
+
+        ### Adjusting Image Size
+
+        Use `change_image_size.py` to modify the checkpoint and config:
+
+        ```bash
+        python change_image_size.py \
+          --input_config <path_to_old_config> \
+          --input_ckpt <path_to_old_checkpoint> \
+          --output_config <path_to_new_config> \
+          --output_ckpt <path_to_new_checkpoint> \
+          --global_size 518 \
+          --local_size 224
+        ```
+      </Tab>
+
+      <Tab title="Finetuning">
+        Convert a pre-trained DINOv2 checkpoint into a ViT classification-compatible format before fine-tuning. Since DINOv2 is a self-supervised model, it does not include a classification head by default. The conversion process retains only the ViT backbone and adds the necessary classification head.
+
+        ### Converting Checkpoint for Fine-Tuning
+
+        Run convert\_dinov2\_to\_vit.py to transform the pre-trained DINOv2 checkpoint into a ViT classification checkpoint:
+
+        ```bash
+        python convert_dinov2_to_vit.py \
+        --input_config <path to config> \
+        --output_config <path to config> \
+        --dataset_path <path to dataset>
+        ```        
+
+        ### Running Finetuning
+
+        ```bash
+        cszoo fit <path to output config>
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Evaluation">
+    To evaluate the model, you can use the `cszoo evaluate` command.
+<Tabs>
+  <Tab title="Pretraining">
+    ```bash
+    cszoo evaluate -pretrain <path to config>
+    ```
+  </Tab>
+  <Tab title="Finetuning">
+    ```bash
+    cszoo evaluate -finetune <path to config>
+    ```
+  </Tab>
+  <Tab title="Continuous Pretraining">
+    ```bash
+    cszoo evaluate -cont-pretrain <path to config>
+    ```
+  </Tab>
+</Tabs>
+
+  </Step>
+</Steps>
+
+## References
+
+* [DINOv2: Learning Robust Visual Features without Supervision](https://arxiv.org/pdf/2304.07193)
+
+* [Emerging Properties in Self-Supervised Vision Transformers](https://arxiv.org/pdf/2104.14294)
